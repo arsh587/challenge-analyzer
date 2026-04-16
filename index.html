@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Challenge Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background:#f5f5f5;}
+    textarea { width:100%; height:120px; margin-top:10px;}
+    button { padding:10px; margin-top:10px;}
+    select { padding:8px; margin-top:10px;}
+    .card { background:white; padding:15px; margin-top:15px; border-radius:10px;}
+  </style>
+</head>
+
+<body>
+
+<h2>Challenge Performance Analyzer</h2>
+
+<h3>Paste Data</h3>
+<textarea id="data" placeholder="Paste CSV here..."></textarea>
+
+<h3>OR Upload CSV</h3>
+<input type="file" id="fileInput" accept=".csv">
+
+<br>
+<button onclick="loadData()">Analyze</button>
+
+<br>
+<select id="challenge"></select>
+
+<div id="output"></div>
+
+<script>
+let data = [];
+
+// FILE UPLOAD
+document.getElementById("fileInput").addEventListener("change", function(e){
+  let file = e.target.files[0];
+
+  Papa.parse(file,{
+    header:true,
+    skipEmptyLines:true,
+    complete:function(res){
+      data = res.data;
+      populateDropdown();
+    }
+  });
+});
+
+// PASTE DATA
+function loadData(){
+  let text = document.getElementById("data").value;
+
+  Papa.parse(text,{
+    header:true,
+    skipEmptyLines:true,
+    complete:function(res){
+      data = res.data;
+      populateDropdown();
+    }
+  });
+}
+
+// DROPDOWN
+function populateDropdown(){
+  let challenges = [...new Set(data.map(d => (d.challenge_id || "").trim()))];
+
+  let dropdown = document.getElementById("challenge");
+  dropdown.innerHTML = "";
+
+  challenges.forEach(c=>{
+    if(!c) return;
+    let opt = document.createElement("option");
+    opt.value = c;
+    opt.text = c;
+    dropdown.appendChild(opt);
+  });
+
+  analyze();
+}
+
+document.getElementById("challenge").onchange = analyze;
+
+// ANALYSIS
+function analyze(){
+  let ch = document.getElementById("challenge").value;
+  let f = data.filter(d => (d.challenge_id || "").trim() === ch);
+
+  let total = f.length;
+  let completed = f.filter(d => d.completed === "Yes").length;
+  let zero = f.filter(d => Number(d.matches_played) === 0).length;
+
+  let completionRate = total ? (completed/total*100).toFixed(1) : 0;
+  let zeroRate = total ? (zero/total*100).toFixed(1) : 0;
+
+  let insight = "";
+
+  if(zeroRate > 40){
+    insight = "⚠️ High drop before first match → Activation issue";
+  } else if(completionRate < 40){
+    insight = "⚠️ Low completion → Challenge may be difficult or unclear";
+  } else {
+    insight = "✅ Challenge performing well";
+  }
+
+  document.getElementById("output").innerHTML = `
+    <div class="card">
+      <b>Participants:</b> ${total} <br>
+      <b>Completion Rate:</b> ${completionRate}% <br>
+      <b>Zero Match Users:</b> ${zeroRate}% <br>
+    </div>
+
+    <div class="card">
+      <b>Insight:</b><br>${insight}
+    </div>
+  `;
+}
+</script>
+
+</body>
+</html>
