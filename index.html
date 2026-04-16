@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Growth Analytics Tool</title>
+  <title>Insight Engine Tool</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body { font-family: Arial; padding:20px; background:#f5f5f5;}
-    textarea { width:100%; height:120px; }
-    button { padding:10px; margin-top:10px; }
-    select { padding:8px; margin-top:10px; margin-right:10px; }
+    textarea { width:100%; height:120px; margin-top:10px;}
+    button { padding:10px; margin-top:10px;}
+    select { padding:8px; margin-top:10px; margin-right:10px;}
 
     .card {
       background:white;
@@ -24,14 +24,14 @@
 
 <body>
 
-<h2>🚀 Growth Analytics Tool</h2>
+<h2>🚀 Insight Engine (Growth Analytics Tool)</h2>
 
 <!-- CSV ANALYZER -->
-<h3>Challenge Analyzer</h3>
-<textarea id="data"></textarea>
+<h3>📊 Challenge Analyzer</h3>
+<textarea id="data" placeholder="Paste CSV..."></textarea>
 <input type="file" id="fileInput">
 <br>
-<button onclick="loadData()">Analyze</button>
+<button onclick="loadData()">Analyze CSV</button>
 
 <br><br>
 <select id="challenge"></select>
@@ -40,33 +40,31 @@
 <div id="output"></div>
 <canvas id="chart"></canvas>
 
-<!-- SUMMARY ANALYZER -->
-<h2>📊 Smart Summary Analyzer</h2>
-
-<div class="card">
-<textarea id="summaryText" placeholder="Paste full report..."></textarea>
-<br>
+<!-- SUMMARY -->
+<h3>📊 Smart Summary Analyzer</h3>
+<textarea id="summaryText" placeholder="Paste report..."></textarea>
 <button onclick="parseSummary()">Analyze Summary</button>
-</div>
 
 <div id="summaryOutput"></div>
-<canvas id="summaryChart"></canvas>
 
-<!-- FUNNEL ANALYZER -->
-<h2>🚀 Opportunity Analyzer</h2>
-
-<div class="card">
+<!-- FUNNEL -->
+<h3>🚀 Funnel Analyzer</h3>
 <textarea id="funnelText" placeholder="Paste funnel data..."></textarea>
-<br>
 <button onclick="analyzeFunnel()">Analyze Funnel</button>
-</div>
 
 <div id="funnelOutput"></div>
+
+<!-- AI ENGINE -->
+<h3>🧠 Insight Engine (ANY DATA)</h3>
+<textarea id="aiInput" placeholder="Paste ANY data / report / CSV..."></textarea>
+<button onclick="analyzeAI()">Get Insights</button>
+
+<div id="aiOutput"></div>
 
 <script>
 
 let data = [];
-let chart, summaryChart;
+let chart;
 
 // CSV upload
 document.getElementById("fileInput").addEventListener("change", function(e){
@@ -80,7 +78,6 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-// paste CSV
 function loadData(){
   Papa.parse(document.getElementById("data").value, {
     header:true,
@@ -92,7 +89,6 @@ function loadData(){
   });
 }
 
-// dropdown
 function populateDropdown(){
   let challenges = [...new Set(data.map(d => (d.challenge_id || "").trim()))];
 
@@ -114,7 +110,6 @@ function populateDropdown(){
 document.getElementById("challenge").onchange = analyze;
 document.getElementById("challenge2").onchange = analyze;
 
-// stats
 function getStats(ch){
   let f = data.filter(d => (d.challenge_id || "").trim() === ch);
 
@@ -129,33 +124,15 @@ function getStats(ch){
   };
 }
 
-// main analyzer
 function analyze(){
 
   let c1 = document.getElementById("challenge").value;
-  let c2 = document.getElementById("challenge2").value;
-
   let s1 = getStats(c1);
-  let s2 = getStats(c2);
-
-  let insight = s1.zero > 40
-    ? "🚨 Activation issue"
-    : s1.completion < 40
-    ? "⚠️ Low completion"
-    : "✅ Healthy";
 
   document.getElementById("output").innerHTML = `
   <div class="card">
   Completion: ${s1.completion.toFixed(1)}%<br>
-  Zero: ${s1.zero.toFixed(1)}%
-  </div>
-
-  <div class="card">
-  Insight: ${insight}
-  </div>
-
-  <div class="card">
-  Compare Diff: ${(s1.completion - s2.completion).toFixed(1)}%
+  Zero Match: ${s1.zero.toFixed(1)}%
   </div>
   `;
 
@@ -169,61 +146,87 @@ function analyze(){
   });
 }
 
-// SUMMARY PARSER
+// SUMMARY
 function extract(text, label){
   let m = text.match(new RegExp(label + "[:]?\\s*(\\d+)", "i"));
   return m ? Number(m[1]) : 0;
 }
 
 function parseSummary(){
-
   let t = document.getElementById("summaryText").value;
 
   let total = extract(t, "Total Users Joined");
   let completed = extract(t, "Total Users Completed");
   let zero = extract(t, "Users who played 0 matches");
-  let repeat = extract(t, "Total Repeat Users");
 
   let completion = (completed/total*100).toFixed(1);
   let zeroRate = (zero/total*100).toFixed(1);
-  let repeatRate = (repeat/total*100).toFixed(1);
 
   document.getElementById("summaryOutput").innerHTML = `
   <div class="card">
   Completion: ${completion}%<br>
-  Zero: ${zeroRate}%<br>
-  Repeat: ${repeatRate}%
+  Zero Match: ${zeroRate}%
   </div>
   `;
-
-  if(summaryChart) summaryChart.destroy();
-  summaryChart = new Chart(document.getElementById("summaryChart"), {
-    type: "bar",
-    data: {
-      labels: ["Completion", "Zero", "Repeat"],
-      datasets: [{ data: [completion, zeroRate, repeatRate] }]
-    }
-  });
 }
 
-// FUNNEL ANALYZER
+// FUNNEL
 function analyzeFunnel(){
-
   let t = document.getElementById("funnelText").value;
 
   let played = extract(t, "played");
-  let reached = extract(t, "reached");
   let joined = extract(t, "joined");
   let completed = extract(t, "completed");
 
-  let joinDrop = ((reached - joined)/reached*100).toFixed(1);
-  let compDrop = ((joined - completed)/joined*100).toFixed(1);
+  let drop = ((joined - completed)/joined*100).toFixed(1);
 
   document.getElementById("funnelOutput").innerHTML = `
   <div class="card">
-  Join Drop: ${joinDrop}%<br>
-  Completion Drop: ${compDrop}%
+  Completion Drop: ${drop}%
   </div>
+  `;
+}
+
+// 🧠 AI ENGINE
+function analyzeAI(){
+
+  let text = document.getElementById("aiInput").value.toLowerCase();
+
+  let insights = "";
+  let questions = "";
+  let actions = "";
+
+  if(text.includes("0 match") || text.includes("zero")){
+    insights += "🚨 Users not reaching first match<br>";
+    actions += "👉 Improve onboarding & nudges<br>";
+  }
+
+  if(text.includes("completed") && text.includes("joined")){
+    insights += "⚠️ Completion gap exists<br>";
+    questions += "👉 What % completes after joining?<br>";
+  }
+
+  if(text.includes("repeat")){
+    insights += "⚠️ Retention low<br>";
+    questions += "👉 What % users return?<br>";
+  }
+
+  questions += `
+  👉 Where is biggest drop?<br>
+  👉 Which users perform best?<br>
+  👉 What data is missing?<br>
+  `;
+
+  actions += `
+  👉 Fix biggest drop first<br>
+  👉 Run small experiments<br>
+  👉 Track weekly improvement<br>
+  `;
+
+  document.getElementById("aiOutput").innerHTML = `
+  <div class="card"><b>Insights:</b><br>${insights}</div>
+  <div class="card"><b>Questions:</b><br>${questions}</div>
+  <div class="card"><b>Actions:</b><br>${actions}</div>
   `;
 }
 
