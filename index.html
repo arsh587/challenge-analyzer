@@ -11,6 +11,7 @@
     textarea { width:100%; height:120px; }
     button { padding:10px; margin-top:10px; }
     select { padding:8px; margin-top:10px; margin-right:10px; }
+    input { padding:8px; margin-top:5px; width:200px; }
 
     .card {
       background:white;
@@ -19,8 +20,6 @@
       border-radius:10px;
       box-shadow:0 2px 5px rgba(0,0,0,0.1);
     }
-
-    h2 { margin-bottom:5px; }
   </style>
 </head>
 
@@ -45,12 +44,26 @@
 <div id="output"></div>
 <canvas id="chart"></canvas>
 
+<!-- 🔥 SUMMARY ANALYZER -->
+<h2>📊 Summary Analyzer</h2>
+
+<div class="card">
+Total Users: <input id="totalUsers"><br>
+Users Completed: <input id="completedUsers"><br>
+Zero Match Users: <input id="zeroUsers"><br>
+Repeat Users: <input id="repeatUsers"><br>
+
+<button onclick="analyzeSummary()">Analyze Summary</button>
+</div>
+
+<div id="summaryOutput"></div>
+
 <script>
 
 let data = [];
 let chart;
 
-// Upload CSV
+// CSV Upload
 document.getElementById("fileInput").addEventListener("change", function(e){
   let file = e.target.files[0];
 
@@ -100,7 +113,7 @@ function populateDropdown(){
 document.getElementById("challenge").onchange = analyze;
 document.getElementById("challenge2").onchange = analyze;
 
-// Stats function
+// Stats
 function getStats(ch){
   let f = data.filter(d => (d.challenge_id || "").trim() === ch);
 
@@ -132,16 +145,16 @@ function analyze(){
   let insight = "";
 
   if(s1.zero > 40){
-    insight = "🚨 High drop before first match → onboarding issue";
+    insight = "🚨 High drop before first match → Activation issue";
   }
   else if(s1.completion < 40){
-    insight = "⚠️ Low completion → challenge too hard or reward unclear";
+    insight = "⚠️ Low completion → Challenge too difficult or unclear";
   }
   else if(s1.completion > 70){
-    insight = "🔥 Strong engagement → challenge working well";
+    insight = "🔥 Strong engagement → Challenge working well";
   }
   else{
-    insight = "⚖️ Moderate performance → needs improvement";
+    insight = "⚖️ Moderate performance → Needs optimization";
   }
 
   let compare = `
@@ -187,6 +200,55 @@ function analyze(){
       }]
     }
   });
+}
+
+// 🔥 SUMMARY ANALYZER LOGIC
+function analyzeSummary(){
+
+  let total = Number(document.getElementById("totalUsers").value);
+  let completed = Number(document.getElementById("completedUsers").value);
+  let zero = Number(document.getElementById("zeroUsers").value);
+  let repeat = Number(document.getElementById("repeatUsers").value);
+
+  if(!total) return alert("Enter total users");
+
+  let completionRate = (completed/total*100).toFixed(1);
+  let zeroRate = (zero/total*100).toFixed(1);
+  let repeatRate = (repeat/total*100).toFixed(1);
+
+  let insight = "";
+  let recommendation = "";
+
+  if(zeroRate > 40){
+    insight += "🚨 High drop before first match<br>";
+    recommendation += "👉 Improve onboarding & first match nudges<br>";
+  }
+
+  if(completionRate < 10){
+    insight += "⚠️ Very low completion rate<br>";
+    recommendation += "👉 Simplify challenges & add rewards<br>";
+  }
+
+  if(repeatRate < 20){
+    insight += "⚠️ Low retention<br>";
+    recommendation += "👉 Add streaks, leaderboard & incentives<br>";
+  }
+
+  document.getElementById("summaryOutput").innerHTML = `
+    <div class="card">
+    <b>Completion Rate:</b> ${completionRate}%<br>
+    <b>Zero Match Rate:</b> ${zeroRate}%<br>
+    <b>Repeat Rate:</b> ${repeatRate}%<br>
+    </div>
+
+    <div class="card">
+    <b>Insights:</b><br>${insight}
+    </div>
+
+    <div class="card">
+    <b>Recommendations:</b><br>${recommendation}
+    </div>
+  `;
 }
 
 </script>
