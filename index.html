@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Challenge Analyzer Pro</title>
+  <title>Growth Analytics Tool</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -24,30 +24,27 @@
 
 <body>
 
-<h2>🚀 Challenge Analyzer Pro (V4)</h2>
+<h2>🚀 Growth Analytics Tool</h2>
 
-<h3>Paste CSV Data</h3>
+<!-- CSV ANALYZER -->
+<h3>Challenge Analyzer</h3>
 <textarea id="data"></textarea>
-
-<h3>OR Upload CSV</h3>
 <input type="file" id="fileInput">
-
 <br>
 <button onclick="loadData()">Analyze</button>
 
 <br><br>
-
 <select id="challenge"></select>
 <select id="challenge2"></select>
 
 <div id="output"></div>
 <canvas id="chart"></canvas>
 
-<!-- 🔥 SMART SUMMARY -->
+<!-- SUMMARY ANALYZER -->
 <h2>📊 Smart Summary Analyzer</h2>
 
 <div class="card">
-<textarea id="summaryText" placeholder="Paste full report here..."></textarea>
+<textarea id="summaryText" placeholder="Paste full report..."></textarea>
 <br>
 <button onclick="parseSummary()">Analyze Summary</button>
 </div>
@@ -55,41 +52,47 @@
 <div id="summaryOutput"></div>
 <canvas id="summaryChart"></canvas>
 
+<!-- FUNNEL ANALYZER -->
+<h2>🚀 Opportunity Analyzer</h2>
+
+<div class="card">
+<textarea id="funnelText" placeholder="Paste funnel data..."></textarea>
+<br>
+<button onclick="analyzeFunnel()">Analyze Funnel</button>
+</div>
+
+<div id="funnelOutput"></div>
+
 <script>
 
 let data = [];
-let chart;
-let summaryChart;
+let chart, summaryChart;
 
-// CSV Upload
+// CSV upload
 document.getElementById("fileInput").addEventListener("change", function(e){
-  let file = e.target.files[0];
-
-  Papa.parse(file,{
+  Papa.parse(e.target.files[0], {
     header:true,
     skipEmptyLines:true,
-    complete:function(res){
+    complete: res => {
       data = res.data;
       populateDropdown();
     }
   });
 });
 
-// Paste Data
+// paste CSV
 function loadData(){
-  let text = document.getElementById("data").value;
-
-  Papa.parse(text,{
+  Papa.parse(document.getElementById("data").value, {
     header:true,
     skipEmptyLines:true,
-    complete:function(res){
+    complete: res => {
       data = res.data;
       populateDropdown();
     }
   });
 }
 
-// Dropdown
+// dropdown
 function populateDropdown(){
   let challenges = [...new Set(data.map(d => (d.challenge_id || "").trim()))];
 
@@ -111,7 +114,7 @@ function populateDropdown(){
 document.getElementById("challenge").onchange = analyze;
 document.getElementById("challenge2").onchange = analyze;
 
-// Stats
+// stats
 function getStats(ch){
   let f = data.filter(d => (d.challenge_id || "").trim() === ch);
 
@@ -119,19 +122,14 @@ function getStats(ch){
   let completed = f.filter(d => d.completed === "Yes").length;
   let zero = f.filter(d => Number(d.matches_played) === 0).length;
 
-  let low = f.filter(d => Number(d.matches_played) <=1).length;
-  let mid = f.filter(d => Number(d.matches_played)>=2 && Number(d.matches_played)<=3).length;
-  let high = f.filter(d => Number(d.matches_played)>3).length;
-
   return {
     total,
     completion: total ? (completed/total*100) : 0,
-    zero: total ? (zero/total*100) : 0,
-    low, mid, high
+    zero: total ? (zero/total*100) : 0
   };
 }
 
-// Main analysis
+// main analyzer
 function analyze(){
 
   let c1 = document.getElementById("challenge").value;
@@ -140,132 +138,93 @@ function analyze(){
   let s1 = getStats(c1);
   let s2 = getStats(c2);
 
-  let insight = "";
-
-  if(s1.zero > 40){
-    insight = "🚨 High drop before first match → Activation issue";
-  }
-  else if(s1.completion < 40){
-    insight = "⚠️ Low completion → Challenge too difficult or unclear";
-  }
-  else if(s1.completion > 70){
-    insight = "🔥 Strong engagement → Challenge working well";
-  }
-  else{
-    insight = "⚖️ Moderate performance → Needs optimization";
-  }
+  let insight = s1.zero > 40
+    ? "🚨 Activation issue"
+    : s1.completion < 40
+    ? "⚠️ Low completion"
+    : "✅ Healthy";
 
   document.getElementById("output").innerHTML = `
-
   <div class="card">
-  <b>Participants:</b> ${s1.total}<br>
-  <b>Completion:</b> ${s1.completion.toFixed(1)}%<br>
-  <b>Zero Match:</b> ${s1.zero.toFixed(1)}%
+  Completion: ${s1.completion.toFixed(1)}%<br>
+  Zero: ${s1.zero.toFixed(1)}%
   </div>
 
   <div class="card">
-  <b>User Segments</b><br>
-  Low (0-1): ${s1.low}<br>
-  Medium (2-3): ${s1.mid}<br>
-  High (4+): ${s1.high}
+  Insight: ${insight}
   </div>
 
   <div class="card">
-  <b>AI Insight:</b><br>${insight}
-  </div>
-
-  <div class="card">
-  <b>Comparison (${c1} vs ${c2})</b><br>
-  Completion Diff: ${(s1.completion - s2.completion).toFixed(1)}%<br>
-  Zero Match Diff: ${(s1.zero - s2.zero).toFixed(1)}%
+  Compare Diff: ${(s1.completion - s2.completion).toFixed(1)}%
   </div>
   `;
 
   if(chart) chart.destroy();
-
   chart = new Chart(document.getElementById("chart"), {
     type: "bar",
     data: {
-      labels: ["Completion %", "Zero Match %"],
-      datasets: [{
-        label: c1,
-        data: [s1.completion, s1.zero]
-      }]
+      labels: ["Completion", "Zero"],
+      datasets: [{ data: [s1.completion, s1.zero] }]
     }
   });
 }
 
-// 🔥 SUMMARY PARSER
-function extractNumber(text, label){
-  let regex = new RegExp(label + "[:]?\\s*(\\d+)", "i");
-  let match = text.match(regex);
-  return match ? Number(match[1]) : 0;
+// SUMMARY PARSER
+function extract(text, label){
+  let m = text.match(new RegExp(label + "[:]?\\s*(\\d+)", "i"));
+  return m ? Number(m[1]) : 0;
 }
 
 function parseSummary(){
 
-  let text = document.getElementById("summaryText").value;
+  let t = document.getElementById("summaryText").value;
 
-  let total = extractNumber(text, "Total Users Joined");
-  let completed = extractNumber(text, "Total Users Completed");
-  let zero = extractNumber(text, "Users who played 0 matches");
-  let repeat = extractNumber(text, "Total Repeat Users");
+  let total = extract(t, "Total Users Joined");
+  let completed = extract(t, "Total Users Completed");
+  let zero = extract(t, "Users who played 0 matches");
+  let repeat = extract(t, "Total Repeat Users");
 
-  if(!total){
-    alert("Couldn't detect data");
-    return;
-  }
-
-  let completionRate = (completed/total*100).toFixed(1);
+  let completion = (completed/total*100).toFixed(1);
   let zeroRate = (zero/total*100).toFixed(1);
   let repeatRate = (repeat/total*100).toFixed(1);
 
-  let insight = "";
-  let rec = "";
-
-  if(zeroRate > 40){
-    insight += "🚨 Major drop before first match<br>";
-    rec += "👉 Improve onboarding & nudges<br>";
-  }
-
-  if(completionRate < 10){
-    insight += "⚠️ Very low completion<br>";
-    rec += "👉 Simplify challenge & reward system<br>";
-  }
-
-  if(repeatRate < 20){
-    insight += "⚠️ Low retention<br>";
-    rec += "👉 Add streaks & engagement loops<br>";
-  }
-
   document.getElementById("summaryOutput").innerHTML = `
   <div class="card">
-  Completion: ${completionRate}%<br>
-  Zero Match: ${zeroRate}%<br>
+  Completion: ${completion}%<br>
+  Zero: ${zeroRate}%<br>
   Repeat: ${repeatRate}%
-  </div>
-
-  <div class="card">
-  <b>AI Insights:</b><br>${insight}
-  </div>
-
-  <div class="card">
-  <b>Recommendations:</b><br>${rec}
   </div>
   `;
 
   if(summaryChart) summaryChart.destroy();
-
   summaryChart = new Chart(document.getElementById("summaryChart"), {
     type: "bar",
     data: {
-      labels: ["Completion %", "Zero %", "Repeat %"],
-      datasets: [{
-        label: "Summary",
-        data: [completionRate, zeroRate, repeatRate]
-      }]
+      labels: ["Completion", "Zero", "Repeat"],
+      datasets: [{ data: [completion, zeroRate, repeatRate] }]
     }
   });
+}
+
+// FUNNEL ANALYZER
+function analyzeFunnel(){
+
+  let t = document.getElementById("funnelText").value;
+
+  let played = extract(t, "played");
+  let reached = extract(t, "reached");
+  let joined = extract(t, "joined");
+  let completed = extract(t, "completed");
+
+  let joinDrop = ((reached - joined)/reached*100).toFixed(1);
+  let compDrop = ((joined - completed)/joined*100).toFixed(1);
+
+  document.getElementById("funnelOutput").innerHTML = `
+  <div class="card">
+  Join Drop: ${joinDrop}%<br>
+  Completion Drop: ${compDrop}%
+  </div>
+  `;
 }
 
 </script>
