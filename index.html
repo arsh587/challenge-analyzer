@@ -11,7 +11,6 @@
     textarea { width:100%; height:120px; }
     button { padding:10px; margin-top:10px; }
     select { padding:8px; margin-top:10px; margin-right:10px; }
-    input { padding:8px; margin-top:5px; width:200px; }
 
     .card {
       background:white;
@@ -25,7 +24,7 @@
 
 <body>
 
-<h2>🚀 Challenge Performance Analyzer (Pro)</h2>
+<h2>🚀 Challenge Analyzer Pro (V4)</h2>
 
 <h3>Paste CSV Data</h3>
 <textarea id="data"></textarea>
@@ -44,24 +43,23 @@
 <div id="output"></div>
 <canvas id="chart"></canvas>
 
-<!-- 🔥 SUMMARY ANALYZER -->
-<h2>📊 Summary Analyzer</h2>
+<!-- 🔥 SMART SUMMARY -->
+<h2>📊 Smart Summary Analyzer</h2>
 
 <div class="card">
-Total Users: <input id="totalUsers"><br>
-Users Completed: <input id="completedUsers"><br>
-Zero Match Users: <input id="zeroUsers"><br>
-Repeat Users: <input id="repeatUsers"><br>
-
-<button onclick="analyzeSummary()">Analyze Summary</button>
+<textarea id="summaryText" placeholder="Paste full report here..."></textarea>
+<br>
+<button onclick="parseSummary()">Analyze Summary</button>
 </div>
 
 <div id="summaryOutput"></div>
+<canvas id="summaryChart"></canvas>
 
 <script>
 
 let data = [];
 let chart;
+let summaryChart;
 
 // CSV Upload
 document.getElementById("fileInput").addEventListener("change", function(e){
@@ -157,14 +155,6 @@ function analyze(){
     insight = "⚖️ Moderate performance → Needs optimization";
   }
 
-  let compare = `
-  <div class="card">
-  <b>Comparison (${c1} vs ${c2})</b><br>
-  Completion Diff: ${(s1.completion - s2.completion).toFixed(1)}%<br>
-  Zero Match Diff: ${(s1.zero - s2.zero).toFixed(1)}%
-  </div>
-  `;
-
   document.getElementById("output").innerHTML = `
 
   <div class="card">
@@ -181,13 +171,16 @@ function analyze(){
   </div>
 
   <div class="card">
-  <b>Insight:</b><br>${insight}
+  <b>AI Insight:</b><br>${insight}
   </div>
 
-  ${compare}
+  <div class="card">
+  <b>Comparison (${c1} vs ${c2})</b><br>
+  Completion Diff: ${(s1.completion - s2.completion).toFixed(1)}%<br>
+  Zero Match Diff: ${(s1.zero - s2.zero).toFixed(1)}%
+  </div>
   `;
 
-  // Chart
   if(chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
@@ -202,53 +195,77 @@ function analyze(){
   });
 }
 
-// 🔥 SUMMARY ANALYZER LOGIC
-function analyzeSummary(){
+// 🔥 SUMMARY PARSER
+function extractNumber(text, label){
+  let regex = new RegExp(label + "[:]?\\s*(\\d+)", "i");
+  let match = text.match(regex);
+  return match ? Number(match[1]) : 0;
+}
 
-  let total = Number(document.getElementById("totalUsers").value);
-  let completed = Number(document.getElementById("completedUsers").value);
-  let zero = Number(document.getElementById("zeroUsers").value);
-  let repeat = Number(document.getElementById("repeatUsers").value);
+function parseSummary(){
 
-  if(!total) return alert("Enter total users");
+  let text = document.getElementById("summaryText").value;
+
+  let total = extractNumber(text, "Total Users Joined");
+  let completed = extractNumber(text, "Total Users Completed");
+  let zero = extractNumber(text, "Users who played 0 matches");
+  let repeat = extractNumber(text, "Total Repeat Users");
+
+  if(!total){
+    alert("Couldn't detect data");
+    return;
+  }
 
   let completionRate = (completed/total*100).toFixed(1);
   let zeroRate = (zero/total*100).toFixed(1);
   let repeatRate = (repeat/total*100).toFixed(1);
 
   let insight = "";
-  let recommendation = "";
+  let rec = "";
 
   if(zeroRate > 40){
-    insight += "🚨 High drop before first match<br>";
-    recommendation += "👉 Improve onboarding & first match nudges<br>";
+    insight += "🚨 Major drop before first match<br>";
+    rec += "👉 Improve onboarding & nudges<br>";
   }
 
   if(completionRate < 10){
-    insight += "⚠️ Very low completion rate<br>";
-    recommendation += "👉 Simplify challenges & add rewards<br>";
+    insight += "⚠️ Very low completion<br>";
+    rec += "👉 Simplify challenge & reward system<br>";
   }
 
   if(repeatRate < 20){
     insight += "⚠️ Low retention<br>";
-    recommendation += "👉 Add streaks, leaderboard & incentives<br>";
+    rec += "👉 Add streaks & engagement loops<br>";
   }
 
   document.getElementById("summaryOutput").innerHTML = `
-    <div class="card">
-    <b>Completion Rate:</b> ${completionRate}%<br>
-    <b>Zero Match Rate:</b> ${zeroRate}%<br>
-    <b>Repeat Rate:</b> ${repeatRate}%<br>
-    </div>
+  <div class="card">
+  Completion: ${completionRate}%<br>
+  Zero Match: ${zeroRate}%<br>
+  Repeat: ${repeatRate}%
+  </div>
 
-    <div class="card">
-    <b>Insights:</b><br>${insight}
-    </div>
+  <div class="card">
+  <b>AI Insights:</b><br>${insight}
+  </div>
 
-    <div class="card">
-    <b>Recommendations:</b><br>${recommendation}
-    </div>
+  <div class="card">
+  <b>Recommendations:</b><br>${rec}
+  </div>
   `;
+
+  if(summaryChart) summaryChart.destroy();
+
+  summaryChart = new Chart(document.getElementById("summaryChart"), {
+    type: "bar",
+    data: {
+      labels: ["Completion %", "Zero %", "Repeat %"],
+      datasets: [{
+        label: "Summary",
+        data: [completionRate, zeroRate, repeatRate]
+      }]
+    }
+  });
 }
 
 </script>
