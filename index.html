@@ -1,39 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Challenge Analyzer</title>
+  <title>Challenge Analyzer Pro</title>
+
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    body { font-family: Arial; padding: 20px; background:#f5f5f5;}
-    textarea { width:100%; height:120px; margin-top:10px;}
-    button { padding:10px; margin-top:10px;}
-    select { padding:8px; margin-top:10px;}
-    .card { background:white; padding:15px; margin-top:15px; border-radius:10px;}
+    body { font-family: Arial; padding:20px; background:#f5f5f5;}
+    textarea { width:100%; height:120px; }
+    button { padding:10px; margin-top:10px; }
+    select { padding:8px; margin-top:10px; margin-right:10px; }
+
+    .card {
+      background:white;
+      padding:15px;
+      margin-top:15px;
+      border-radius:10px;
+      box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    h2 { margin-bottom:5px; }
   </style>
 </head>
 
 <body>
 
-<h2>Challenge Performance Analyzer</h2>
+<h2>🚀 Challenge Performance Analyzer (Pro)</h2>
 
-<h3>Paste Data</h3>
-<textarea id="data" placeholder="Paste CSV here..."></textarea>
+<h3>Paste CSV Data</h3>
+<textarea id="data"></textarea>
 
 <h3>OR Upload CSV</h3>
-<input type="file" id="fileInput" accept=".csv">
+<input type="file" id="fileInput">
 
 <br>
 <button onclick="loadData()">Analyze</button>
 
-<br>
+<br><br>
+
 <select id="challenge"></select>
+<select id="challenge2"></select>
 
 <div id="output"></div>
+<canvas id="chart"></canvas>
 
 <script>
-let data = [];
 
-// FILE UPLOAD
+let data = [];
+let chart;
+
+// Upload CSV
 document.getElementById("fileInput").addEventListener("change", function(e){
   let file = e.target.files[0];
 
@@ -47,7 +64,7 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-// PASTE DATA
+// Paste Data
 function loadData(){
   let text = document.getElementById("data").value;
 
@@ -61,60 +78,117 @@ function loadData(){
   });
 }
 
-// DROPDOWN
+// Dropdown
 function populateDropdown(){
   let challenges = [...new Set(data.map(d => (d.challenge_id || "").trim()))];
 
-  let dropdown = document.getElementById("challenge");
-  dropdown.innerHTML = "";
+  let d1 = document.getElementById("challenge");
+  let d2 = document.getElementById("challenge2");
+
+  d1.innerHTML = "";
+  d2.innerHTML = "";
 
   challenges.forEach(c=>{
     if(!c) return;
-    let opt = document.createElement("option");
-    opt.value = c;
-    opt.text = c;
-    dropdown.appendChild(opt);
+    d1.add(new Option(c,c));
+    d2.add(new Option(c,c));
   });
 
   analyze();
 }
 
 document.getElementById("challenge").onchange = analyze;
+document.getElementById("challenge2").onchange = analyze;
 
-// ANALYSIS
-function analyze(){
-  let ch = document.getElementById("challenge").value;
+// Stats function
+function getStats(ch){
   let f = data.filter(d => (d.challenge_id || "").trim() === ch);
 
   let total = f.length;
   let completed = f.filter(d => d.completed === "Yes").length;
   let zero = f.filter(d => Number(d.matches_played) === 0).length;
 
-  let completionRate = total ? (completed/total*100).toFixed(1) : 0;
-  let zeroRate = total ? (zero/total*100).toFixed(1) : 0;
+  let low = f.filter(d => Number(d.matches_played) <=1).length;
+  let mid = f.filter(d => Number(d.matches_played)>=2 && Number(d.matches_played)<=3).length;
+  let high = f.filter(d => Number(d.matches_played)>3).length;
+
+  return {
+    total,
+    completion: total ? (completed/total*100) : 0,
+    zero: total ? (zero/total*100) : 0,
+    low, mid, high
+  };
+}
+
+// Main analysis
+function analyze(){
+
+  let c1 = document.getElementById("challenge").value;
+  let c2 = document.getElementById("challenge2").value;
+
+  let s1 = getStats(c1);
+  let s2 = getStats(c2);
 
   let insight = "";
 
-  if(zeroRate > 40){
-    insight = "⚠️ High drop before first match → Activation issue";
-  } else if(completionRate < 40){
-    insight = "⚠️ Low completion → Challenge may be difficult or unclear";
-  } else {
-    insight = "✅ Challenge performing well";
+  if(s1.zero > 40){
+    insight = "🚨 High drop before first match → onboarding issue";
+  }
+  else if(s1.completion < 40){
+    insight = "⚠️ Low completion → challenge too hard or reward unclear";
+  }
+  else if(s1.completion > 70){
+    insight = "🔥 Strong engagement → challenge working well";
+  }
+  else{
+    insight = "⚖️ Moderate performance → needs improvement";
   }
 
-  document.getElementById("output").innerHTML = `
-    <div class="card">
-      <b>Participants:</b> ${total} <br>
-      <b>Completion Rate:</b> ${completionRate}% <br>
-      <b>Zero Match Users:</b> ${zeroRate}% <br>
-    </div>
-
-    <div class="card">
-      <b>Insight:</b><br>${insight}
-    </div>
+  let compare = `
+  <div class="card">
+  <b>Comparison (${c1} vs ${c2})</b><br>
+  Completion Diff: ${(s1.completion - s2.completion).toFixed(1)}%<br>
+  Zero Match Diff: ${(s1.zero - s2.zero).toFixed(1)}%
+  </div>
   `;
+
+  document.getElementById("output").innerHTML = `
+
+  <div class="card">
+  <b>Participants:</b> ${s1.total}<br>
+  <b>Completion:</b> ${s1.completion.toFixed(1)}%<br>
+  <b>Zero Match:</b> ${s1.zero.toFixed(1)}%
+  </div>
+
+  <div class="card">
+  <b>User Segments</b><br>
+  Low (0-1): ${s1.low}<br>
+  Medium (2-3): ${s1.mid}<br>
+  High (4+): ${s1.high}
+  </div>
+
+  <div class="card">
+  <b>Insight:</b><br>${insight}
+  </div>
+
+  ${compare}
+  `;
+
+  // Chart
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: "bar",
+    data: {
+      labels: ["Completion %", "Zero Match %"],
+      datasets: [{
+        label: c1,
+        data: [s1.completion, s1.zero]
+      }]
+    }
+  });
 }
+
 </script>
 
 </body>
