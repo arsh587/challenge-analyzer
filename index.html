@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS by Arsh</title>
+  <title>InsightOS Pro — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -10,7 +10,7 @@
     body {
       font-family: Arial;
       padding:20px;
-      background: linear-gradient(135deg,#0f172a,#1e293b);
+      background: linear-gradient(135deg,#020617,#0f172a);
       color:white;
     }
 
@@ -45,13 +45,13 @@
 
 <body>
 
-<h1>🚀 InsightOS</h1>
-<p>Free Analytics Copilot — by Arsh</p>
+<h1>🚀 InsightOS Pro</h1>
+<p>Advanced Analytics Engine — by Arsh</p>
 
 <input type="file" id="fileInput">
 
 <h3>🧠 Ask anything about your data</h3>
-<textarea id="query" placeholder="e.g. how many users are active?"></textarea>
+<textarea id="query" placeholder="e.g. top city, avg matches, count by state"></textarea>
 
 <button onclick="analyze()">Analyze</button>
 
@@ -61,6 +61,7 @@
 <script>
 
 let data = [];
+let chart;
 
 document.getElementById("fileInput").addEventListener("change", function(e){
   Papa.parse(e.target.files[0], {
@@ -79,77 +80,110 @@ function analyze(){
 
   let q = document.getElementById("query").value.toLowerCase();
 
-  let total = data.length;
+  let keys = Object.keys(data[0]);
 
-  let active = data.filter(d => Number(d.Indidividual_matches_same_month) > 0).length;
-  let inactive = total - active;
+  let numericCols = [];
+  let categoricalCols = [];
 
-  let verified = data.filter(d => (d.Verification_status||"").toLowerCase()=="verified").length;
-
-  let activeRate = (active/total*100).toFixed(1);
+  keys.forEach(k=>{
+    let val = data[0][k];
+    if(!isNaN(val)) numericCols.push(k);
+    else categoricalCols.push(k);
+  });
 
   let output = "";
   let insights = "";
-  let chartData = [];
 
-  // 🔥 QUERY ENGINE
-  if(q.includes("active")){
-    output += `Active Users: ${active} (${activeRate}%)<br>`;
-    chartData = [active, inactive];
+  // 🔥 COUNT BY CATEGORY
+  if(q.includes("count by") || q.includes("top")){
+
+    let col = categoricalCols.find(c => q.includes(c.toLowerCase())) || categoricalCols[0];
+
+    let counts = {};
+
+    data.forEach(d=>{
+      let v = d[col];
+      counts[v] = (counts[v]||0)+1;
+    });
+
+    let sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+    output += `<b>Top ${col}</b><br>`;
+    sorted.slice(0,5).forEach(([k,v])=>{
+      output += `${k}: ${v}<br>`;
+    });
+
+    drawChart(sorted.slice(0,5));
+
+    insights += `👉 ${col} drives user distribution<br>`;
   }
 
-  if(q.includes("inactive")){
-    output += `Inactive Users: ${inactive}<br>`;
+  // 🔥 AVERAGE
+  else if(q.includes("average") || q.includes("avg")){
+
+    let col = numericCols[0];
+
+    let values = data.map(d=>Number(d[col])||0);
+    let avg = (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2);
+
+    output += `Average ${col}: ${avg}<br>`;
+
+    if(avg < 1){
+      insights += "🚨 Low engagement detected<br>";
+    }
   }
 
-  if(q.includes("verified")){
-    output += `Verified Users: ${verified}<br>`;
-  }
+  // 🔥 ACTIVE USERS DETECT
+  else if(q.includes("active")){
 
-  if(q.includes("activation")){
-    output += `Activation Rate: ${activeRate}%<br>`;
+    let col = numericCols.find(c=>c.toLowerCase().includes("match")) || numericCols[0];
+
+    let active = data.filter(d=>Number(d[col])>0).length;
+    let rate = (active/data.length*100).toFixed(1);
+
+    output += `Active Users: ${active} (${rate}%)`;
+
+    drawChart([["Active",active],["Inactive",data.length-active]]);
+
+    if(rate < 20){
+      insights += "🚨 Activation issue<br>";
+    }
   }
 
   // fallback
-  if(output === ""){
-    output = `
-    Total Users: ${total}<br>
-    Active Users: ${active}<br>
-    Activation Rate: ${activeRate}%
-    `;
-    chartData = [active, inactive];
-  }
-
-  // 🧠 INSIGHTS
-  if(activeRate < 20){
-    insights += "🚨 Low activation — onboarding issue<br>";
-  }
-
-  if(verified/total < 0.5){
-    insights += "⚠️ Many users unverified<br>";
+  else {
+    output += `Total rows: ${data.length}<br>`;
+    insights += "👉 Try queries like 'top city', 'avg matches'<br>";
   }
 
   insights += `
-  👉 Focus on first match experience<br>
-  👉 Segment users by activity<br>
+  👉 Check segmentation<br>
+  👉 Compare categories<br>
+  👉 Identify drop-off stages<br>
   `;
 
   document.getElementById("output").innerHTML = `
   <div class="card"><b>📊 Answer</b><br>${output}</div>
   <div class="card"><b>🧠 Insights</b><br>${insights}</div>
-  <div class="card"><b>❓ Next</b><br>
-  👉 Which users are most active?<br>
-  👉 Which cities perform best?<br>
-  👉 Do verified users play more?<br>
-  </div>
   `;
 
-  // Chart
-  new Chart(document.getElementById("chart"), {
-    type: "pie",
+}
+
+function drawChart(dataArr){
+
+  if(chart) chart.destroy();
+
+  let labels = dataArr.map(x=>x[0]);
+  let values = dataArr.map(x=>x[1]);
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: "bar",
     data: {
-      labels: ["Active","Inactive"],
-      datasets: [{ data: chartData }]
+      labels: labels,
+      datasets: [{
+        label: "Data",
+        data: values
+      }]
     }
   });
 }
