@@ -1,31 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Lite — by Arsh</title>
+  <title>InsightOS Pro — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: 'Segoe UI';
       padding:20px;
-      background: linear-gradient(135deg,#020617,#0f172a);
+      background:#020617;
       color:white;
     }
 
-    h1 { color:#38bdf8; }
+    h1 { color:#22c55e; }
 
-    input, button {
+    textarea, input {
       width:100%;
       padding:12px;
       margin-top:10px;
       border-radius:10px;
       border:none;
+      background:#1e293b;
+      color:white;
     }
 
     button {
-      background:#38bdf8;
+      padding:12px;
+      margin-top:10px;
+      background:#22c55e;
+      border:none;
+      border-radius:10px;
       font-weight:bold;
       cursor:pointer;
     }
@@ -41,19 +46,20 @@
 
 <body>
 
-<h1>🚀 InsightOS Lite</h1>
-<p>Auto Data Analysis Tool — by Arsh</p>
+<h1>🚀 InsightOS Pro</h1>
+<p>Context-Based Analytics Engine — by Arsh</p>
 
 <input type="file" id="fileInput">
-<button onclick="analyze()">Analyze Data</button>
+
+<textarea id="query" placeholder="e.g. analyze activation of new users"></textarea>
+
+<button onclick="analyze()">Analyze</button>
 
 <div id="output"></div>
-<canvas id="chart"></canvas>
 
 <script>
 
 let data = [];
-let chart;
 
 document.getElementById("fileInput").addEventListener("change", function(e){
   Papa.parse(e.target.files[0], {
@@ -63,98 +69,88 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
+function findColumn(keywords){
+  let keys = Object.keys(data[0]);
+  return keys.find(k => keywords.some(word => k.toLowerCase().includes(word)));
+}
+
 function analyze(){
 
+  let q = document.getElementById("query").value.toLowerCase();
+
   if(data.length === 0){
-    alert("Upload file first");
+    alert("Upload data first");
     return;
   }
 
-  let totalRows = data.length;
-  let columns = Object.keys(data[0]);
+  let output = "";
 
-  let numericCols = [];
-  let categoricalCols = [];
+  // 🔥 ACTIVATION ANALYSIS
+  if(q.includes("activation")){
 
-  columns.forEach(col=>{
-    let val = data[0][col];
-    if(!isNaN(val)) numericCols.push(col);
-    else categoricalCols.push(col);
-  });
+    let usersCol = findColumn(["player","user"]);
+    let matchCol = findColumn(["match"]);
 
-  let output = `<div class="card"><b>📊 Overview</b><br>
-  Rows: ${totalRows}<br>
-  Columns: ${columns.length}
-  </div>`;
+    let totalUsers = data.reduce((sum,d)=> sum + Number(d[usersCol]||0),0);
+    let activeUsers = data.reduce((sum,d)=> sum + Number(d[matchCol]||0),0);
 
-  let insights = "";
+    let rate = ((activeUsers/totalUsers)*100).toFixed(2);
 
-  // Numeric analysis
-  numericCols.forEach(col=>{
-    let values = data.map(d=>Number(d[col])||0);
-    let avg = (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2);
-    let max = Math.max(...values);
-    let min = Math.min(...values);
+    output = `
+    <div class="card">
+    <b>📊 Activation Analysis</b><br>
+    Total Users: ${totalUsers}<br>
+    Active Users: ${activeUsers}<br>
+    Activation Rate: ${rate}%
+    </div>
 
-    output += `<div class="card"><b>${col}</b><br>
-    Avg: ${avg}<br>Min: ${min}<br>Max: ${max}</div>`;
+    <div class="card">
+    <b>🧠 Insights</b><br>
+    ${rate < 20 ? "🚨 Very low activation — most users not engaging<br>" : ""}
+    👉 Huge drop after signup<br>
+    👉 Engagement starts late or never<br>
+    </div>
 
-    if(avg < 1){
-      insights += `⚠️ Low values in ${col}<br>`;
-    }
-  });
-
-  // Categorical analysis
-  categoricalCols.forEach(col=>{
-    let counts = {};
-    data.forEach(d=>{
-      let val = d[col] || "Unknown";
-      counts[val] = (counts[val]||0)+1;
-    });
-
-    let sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-
-    output += `<div class="card"><b>Top ${col}</b><br>`;
-    sorted.slice(0,3).forEach(([k,v])=>{
-      output += `${k}: ${v}<br>`;
-    });
-    output += `</div>`;
-
-    if(sorted[0][1] > totalRows * 0.7){
-      insights += `⚠️ ${col} dominated by ${sorted[0][0]}<br>`;
-    }
-  });
-
-  // Chart (first categorical)
-  let sampleCol = categoricalCols[0];
-  if(sampleCol){
-
-    let counts = {};
-    data.forEach(d=>{
-      let v = d[sampleCol];
-      counts[v] = (counts[v]||0)+1;
-    });
-
-    if(chart) chart.destroy();
-
-    chart = new Chart(document.getElementById("chart"), {
-      type:"bar",
-      data:{
-        labels:Object.keys(counts),
-        datasets:[{ data:Object.values(counts) }]
-      }
-    });
+    <div class="card">
+    <b>🚀 Recommendations</b><br>
+    👉 Improve first match experience<br>
+    👉 Add onboarding nudges<br>
+    👉 Push challenges early<br>
+    </div>
+    `;
   }
 
-  document.getElementById("output").innerHTML = output + `
-  <div class="card"><b>🧠 Insights</b><br>${insights}</div>
+  // 🔥 ENGAGEMENT ANALYSIS
+  else if(q.includes("engagement")){
 
-  <div class="card"><b>🚀 Suggested Analysis</b><br>
-  👉 Segment users by activity<br>
-  👉 Compare top categories<br>
-  👉 Check distribution trends<br>
-  </div>
-  `;
+    let avgCol = findColumn(["avg"]);
+
+    output = `
+    <div class="card">
+    <b>📊 Engagement Analysis</b><br>
+    Avg Matches per User: ${data[0][avgCol]}
+    </div>
+
+    <div class="card">
+    <b>🧠 Insight</b><br>
+    🚨 Low engagement depth — users not playing enough matches
+    </div>
+    `;
+  }
+
+  // fallback
+  else {
+    output = `
+    <div class="card">
+    Try queries like:<br>
+    👉 analyze activation<br>
+    👉 analyze engagement<br>
+    👉 activation of new users<br>
+    </div>
+    `;
+  }
+
+  document.getElementById("output").innerHTML = output;
 }
 
 </script>
