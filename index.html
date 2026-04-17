@@ -1,17 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Analytics Copilot</title>
+  <title>InsightOS Lite (Free)</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
-    body { font-family: Arial; padding:20px; background:#f5f5f5;}
-    textarea { width:100%; height:120px; margin-top:10px;}
-    button { padding:10px; margin-top:10px;}
+    body {
+      font-family: Arial;
+      padding:20px;
+      background:#111827;
+      color:white;
+    }
+
+    textarea, input {
+      width:100%;
+      padding:10px;
+      margin-top:10px;
+      border-radius:8px;
+      border:none;
+    }
+
+    button {
+      padding:12px;
+      margin-top:10px;
+      background:#f59e0b;
+      border:none;
+      border-radius:8px;
+      font-weight:bold;
+      cursor:pointer;
+    }
 
     .card {
-      background:white;
+      background:#1f2937;
       padding:15px;
       margin-top:15px;
       border-radius:10px;
@@ -21,17 +42,15 @@
 
 <body>
 
-<h2>🧠 Analytics Copilot</h2>
+<h1>🚀 InsightOS Lite</h1>
+<p>Free Analytics Engine — by Arsh</p>
 
-<h3>🎯 What do you want to analyze?</h3>
-<textarea id="goal" placeholder="e.g. Identify high-intent users, best segments, challenge types..."></textarea>
-
-<h3>📊 Upload / Paste Data</h3>
-<textarea id="data"></textarea>
 <input type="file" id="fileInput">
 
-<br>
-<button onclick="runAnalysis()">Analyze</button>
+<h3>What do you want to analyze?</h3>
+<textarea id="goal" placeholder="e.g. high intent users, activation, retention"></textarea>
+
+<button onclick="analyze()">Analyze</button>
 
 <div id="output"></div>
 
@@ -39,7 +58,6 @@
 
 let data = [];
 
-// CSV load
 document.getElementById("fileInput").addEventListener("change", function(e){
   Papa.parse(e.target.files[0], {
     header:true,
@@ -48,80 +66,72 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-function runAnalysis(){
+function analyze(){
 
   let goal = document.getElementById("goal").value.toLowerCase();
 
-  if(document.getElementById("data").value){
-    Papa.parse(document.getElementById("data").value, {
-      header:true,
-      skipEmptyLines:true,
-      complete: res => {
-        data = res.data;
-        analyzeGoal(goal);
-      }
-    });
-  } else {
-    analyzeGoal(goal);
-  }
-}
-
-function analyzeGoal(goal){
-
-  let insights = "";
-  let metrics = "";
-  let suggestions = "";
-
-  // Example logic based on your dataset
   let total = data.length;
 
-  let active = data.filter(d => Number(d.Indidividual_matches_same_month) > 0).length;
-  let inactive = total - active;
+  let played = data.filter(d => Number(d.Indidividual_matches_same_month) > 0).length;
+  let zero = total - played;
 
-  let verified = data.filter(d => (d.Verification_status || "").toLowerCase() === "verified").length;
+  let verified = data.filter(d => 
+    (d.Verification_status || "").toLowerCase() === "verified"
+  ).length;
 
-  let activeRate = (active/total*100).toFixed(1);
-  let verifiedRate = (verified/total*100).toFixed(1);
+  let playedRate = (played/total*100).toFixed(1);
 
-  // 🎯 Goal-based logic
-  if(goal.includes("high intent") || goal.includes("segment")){
+  let insights = "";
+  let actions = "";
+  let questions = "";
 
-    metrics += `
-    Total Users: ${total}<br>
-    Active Users: ${active} (${activeRate}%)<br>
-    Verified Users: ${verified} (${verifiedRate}%)
-    `;
-
-    insights += `
-    🔍 High intent users are very low (${activeRate}%)<br>
-    🔍 Most users are inactive after joining<br>
-    `;
-
-    suggestions += `
-    👉 Focus on users who played at least 1 match<br>
-    👉 Create onboarding nudges for inactive users<br>
-    👉 Analyze verified vs unverified conversion<br>
-    `;
+  // 🔥 Smart logic
+  if(playedRate < 20){
+    insights += "🚨 Very low activation rate<br>";
+    actions += "👉 Improve onboarding & first match nudges<br>";
   }
 
-  // generic intelligence
-  insights += `
-  <br>🧠 Key Observations:<br>
-  👉 Majority users are not engaging after signup<br>
-  👉 Activation is the biggest drop-off point
+  if(verified/total < 0.5){
+    insights += "⚠️ Many users are unverified<br>";
+    actions += "👉 Improve verification funnel<br>";
+  }
+
+  if(zero > played){
+    insights += "⚠️ Majority users are inactive<br>";
+  }
+
+  // 🧠 thinking layer
+  questions += `
+  👉 What % users play within 3 days?<br>
+  👉 Which cities have higher engagement?<br>
+  👉 Are verified users more active?<br>
   `;
 
-  suggestions += `
-  <br>🚀 What to check next:<br>
-  👉 Match played within first 3 days<br>
-  👉 Challenge join rate for active users<br>
-  👉 State/city level performance<br>
+  actions += `
+  👉 Focus on first match experience<br>
+  👉 Segment active vs inactive users<br>
+  👉 Run small experiments<br>
   `;
 
   document.getElementById("output").innerHTML = `
-  <div class="card"><b>📊 Metrics:</b><br>${metrics}</div>
-  <div class="card"><b>🧠 Insights:</b><br>${insights}</div>
-  <div class="card"><b>🚀 Suggestions:</b><br>${suggestions}</div>
+  <div class="card">
+  <b>📊 Metrics</b><br>
+  Total Users: ${total}<br>
+  Played Match: ${played} (${playedRate}%)<br>
+  Not Played: ${zero}
+  </div>
+
+  <div class="card">
+  <b>🧠 Insights</b><br>${insights}
+  </div>
+
+  <div class="card">
+  <b>🚀 Actions</b><br>${actions}
+  </div>
+
+  <div class="card">
+  <b>❓ Next Questions</b><br>${questions}
+  </div>
   `;
 }
 
