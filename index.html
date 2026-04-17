@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Lite (Free)</title>
+  <title>InsightOS Lite Pro — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: Arial;
       padding:20px;
-      background:#111827;
+      background: linear-gradient(135deg,#0f172a,#1e293b);
       color:white;
     }
+
+    h1 { color:#f59e0b; }
 
     textarea, input {
       width:100%;
@@ -32,7 +35,7 @@
     }
 
     .card {
-      background:#1f2937;
+      background:#1e293b;
       padding:15px;
       margin-top:15px;
       border-radius:10px;
@@ -42,17 +45,18 @@
 
 <body>
 
-<h1>🚀 InsightOS Lite</h1>
-<p>Free Analytics Engine — by Arsh</p>
+<h1>🚀 InsightOS Lite Pro</h1>
+<p>Free Analytics Copilot — by Arsh</p>
 
 <input type="file" id="fileInput">
 
-<h3>What do you want to analyze?</h3>
-<textarea id="goal" placeholder="e.g. high intent users, activation, retention"></textarea>
+<h3>🎯 What do you want to analyze?</h3>
+<textarea id="goal" placeholder="e.g. activation, segmentation, performance"></textarea>
 
 <button onclick="analyze()">Analyze</button>
 
 <div id="output"></div>
+<canvas id="chart"></canvas>
 
 <script>
 
@@ -68,71 +72,92 @@ document.getElementById("fileInput").addEventListener("change", function(e){
 
 function analyze(){
 
-  let goal = document.getElementById("goal").value.toLowerCase();
-
   let total = data.length;
 
-  let played = data.filter(d => Number(d.Indidividual_matches_same_month) > 0).length;
-  let zero = total - played;
+  if(total === 0){
+    alert("Upload data first");
+    return;
+  }
 
-  let verified = data.filter(d => 
-    (d.Verification_status || "").toLowerCase() === "verified"
-  ).length;
+  let keys = Object.keys(data[0]);
 
-  let playedRate = (played/total*100).toFixed(1);
+  let numericCols = [];
+  let categoricalCols = [];
+
+  keys.forEach(k=>{
+    let val = data[0][k];
+    if(!isNaN(val)) numericCols.push(k);
+    else categoricalCols.push(k);
+  });
 
   let insights = "";
-  let actions = "";
+  let metrics = "";
   let questions = "";
 
-  // 🔥 Smart logic
-  if(playedRate < 20){
-    insights += "🚨 Very low activation rate<br>";
-    actions += "👉 Improve onboarding & first match nudges<br>";
+  // Example: find numeric column automatically
+  numericCols.forEach(col=>{
+    let values = data.map(d => Number(d[col]) || 0);
+    let avg = (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2);
+
+    metrics += `${col} avg: ${avg}<br>`;
+  });
+
+  // Example: categorical analysis
+  categoricalCols.forEach(col=>{
+    let counts = {};
+    data.forEach(d=>{
+      let val = d[col];
+      counts[val] = (counts[val]||0)+1;
+    });
+
+    let top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+
+    insights += `Top ${col}: ${top[0]} (${top[1]})<br>`;
+  });
+
+  // Smart insights
+  if(numericCols.includes("Indidividual_matches_same_month")){
+    let active = data.filter(d=>Number(d.Indidividual_matches_same_month)>0).length;
+    let rate = (active/total*100).toFixed(1);
+
+    insights += `Activation rate: ${rate}%<br>`;
+
+    if(rate < 20){
+      insights += "🚨 Low activation detected<br>";
+    }
   }
 
-  if(verified/total < 0.5){
-    insights += "⚠️ Many users are unverified<br>";
-    actions += "👉 Improve verification funnel<br>";
-  }
-
-  if(zero > played){
-    insights += "⚠️ Majority users are inactive<br>";
-  }
-
-  // 🧠 thinking layer
   questions += `
-  👉 What % users play within 3 days?<br>
-  👉 Which cities have higher engagement?<br>
+  👉 Which segment performs best?<br>
   👉 Are verified users more active?<br>
-  `;
-
-  actions += `
-  👉 Focus on first match experience<br>
-  👉 Segment active vs inactive users<br>
-  👉 Run small experiments<br>
+  👉 Which month has better engagement?<br>
   `;
 
   document.getElementById("output").innerHTML = `
-  <div class="card">
-  <b>📊 Metrics</b><br>
-  Total Users: ${total}<br>
-  Played Match: ${played} (${playedRate}%)<br>
-  Not Played: ${zero}
-  </div>
-
-  <div class="card">
-  <b>🧠 Insights</b><br>${insights}
-  </div>
-
-  <div class="card">
-  <b>🚀 Actions</b><br>${actions}
-  </div>
-
-  <div class="card">
-  <b>❓ Next Questions</b><br>${questions}
-  </div>
+  <div class="card"><b>📊 Metrics</b><br>${metrics}</div>
+  <div class="card"><b>🧠 Insights</b><br>${insights}</div>
+  <div class="card"><b>❓ Next Questions</b><br>${questions}</div>
   `;
+
+  // Chart example
+  let sampleCol = categoricalCols[0];
+
+  let counts = {};
+  data.forEach(d=>{
+    let val = d[sampleCol];
+    counts[val] = (counts[val]||0)+1;
+  });
+
+  new Chart(document.getElementById("chart"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{
+        label: sampleCol,
+        data: Object.values(counts)
+      }]
+    }
+  });
 }
 
 </script>
