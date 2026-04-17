@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Pro — by Arsh</title>
+  <title>InsightOS Smart — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -15,22 +15,16 @@
 
     h1 { color:#22c55e; }
 
-    textarea, input {
+    input, button {
       width:100%;
       padding:12px;
       margin-top:10px;
       border-radius:10px;
       border:none;
-      background:#1e293b;
-      color:white;
     }
 
     button {
-      padding:12px;
-      margin-top:10px;
       background:#22c55e;
-      border:none;
-      border-radius:10px;
       font-weight:bold;
       cursor:pointer;
     }
@@ -46,14 +40,11 @@
 
 <body>
 
-<h1>🚀 InsightOS Pro</h1>
-<p>Context-Based Analytics Engine — by Arsh</p>
+<h1>🚀 InsightOS Smart</h1>
+<p>Context-Aware Analytics Engine — by Arsh</p>
 
 <input type="file" id="fileInput">
-
-<textarea id="query" placeholder="e.g. analyze activation of new users"></textarea>
-
-<button onclick="analyze()">Analyze</button>
+<button onclick="analyze()">Analyze Automatically</button>
 
 <div id="output"></div>
 
@@ -69,86 +60,100 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-function findColumn(keywords){
+function findCol(keywords){
   let keys = Object.keys(data[0]);
-  return keys.find(k => keywords.some(word => k.toLowerCase().includes(word)));
+  return keys.find(k => keywords.some(w => k.toLowerCase().includes(w)));
 }
 
 function analyze(){
 
-  let q = document.getElementById("query").value.toLowerCase();
-
   if(data.length === 0){
-    alert("Upload data first");
+    alert("Upload file first");
     return;
   }
 
+  let total = data.length;
+
+  let playerCol = findCol(["player","user"]);
+  let matchCol = findCol(["match"]);
+  let avgCol = findCol(["avg"]);
+  let monthCol = findCol(["month"]);
+
   let output = "";
 
-  // 🔥 ACTIVATION ANALYSIS
-  if(q.includes("activation")){
+  // 🔥 ACTIVATION LOGIC
+  if(matchCol && playerCol){
 
-    let usersCol = findColumn(["player","user"]);
-    let matchCol = findColumn(["match"]);
+    let totalPlayers = data.reduce((sum,d)=> sum + Number(d[playerCol]||0),0);
+    let activePlayers = data.reduce((sum,d)=> sum + Number(d[matchCol]||0),0);
 
-    let totalUsers = data.reduce((sum,d)=> sum + Number(d[usersCol]||0),0);
-    let activeUsers = data.reduce((sum,d)=> sum + Number(d[matchCol]||0),0);
+    let activation = ((activePlayers/totalPlayers)*100).toFixed(1);
 
-    let rate = ((activeUsers/totalUsers)*100).toFixed(2);
-
-    output = `
+    output += `
     <div class="card">
     <b>📊 Activation Analysis</b><br>
-    Total Users: ${totalUsers}<br>
-    Active Users: ${activeUsers}<br>
-    Activation Rate: ${rate}%
-    </div>
-
-    <div class="card">
-    <b>🧠 Insights</b><br>
-    ${rate < 20 ? "🚨 Very low activation — most users not engaging<br>" : ""}
-    👉 Huge drop after signup<br>
-    👉 Engagement starts late or never<br>
-    </div>
-
-    <div class="card">
-    <b>🚀 Recommendations</b><br>
-    👉 Improve first match experience<br>
-    👉 Add onboarding nudges<br>
-    👉 Push challenges early<br>
+    Total Users: ${totalPlayers}<br>
+    Active Users: ${activePlayers}<br>
+    Activation Rate: ${activation}%
     </div>
     `;
+
+    if(activation < 30){
+      output += `
+      <div class="card">
+      🚨 <b>Critical Insight</b><br>
+      Most users are not engaging after signup → major activation issue
+      </div>
+      `;
+    }
   }
 
-  // 🔥 ENGAGEMENT ANALYSIS
-  else if(q.includes("engagement")){
+  // 🔥 AVG MATCH
+  if(avgCol){
+    let avg = data.reduce((s,d)=>s+Number(d[avgCol]||0),0)/data.length;
 
-    let avgCol = findColumn(["avg"]);
-
-    output = `
-    <div class="card">
-    <b>📊 Engagement Analysis</b><br>
-    Avg Matches per User: ${data[0][avgCol]}
-    </div>
-
-    <div class="card">
-    <b>🧠 Insight</b><br>
-    🚨 Low engagement depth — users not playing enough matches
-    </div>
-    `;
+    if(avg < 1){
+      output += `
+      <div class="card">
+      ⚠️ <b>Low Engagement Depth</b><br>
+      Users are playing very few matches after joining
+      </div>
+      `;
+    }
   }
 
-  // fallback
-  else {
-    output = `
-    <div class="card">
-    Try queries like:<br>
-    👉 analyze activation<br>
-    👉 analyze engagement<br>
-    👉 activation of new users<br>
-    </div>
-    `;
+  // 🔥 TREND
+  if(monthCol && matchCol){
+
+    output += `<div class="card"><b>📈 Trend Analysis</b><br>`;
+
+    data.forEach(d=>{
+      output += `${d[monthCol]} → ${d[matchCol]} matches<br>`;
+    });
+
+    output += `</div>`;
   }
+
+  // 🔥 RECOMMENDATIONS
+  output += `
+  <div class="card">
+  <b>🚀 Recommendations</b><br>
+  👉 Improve first match onboarding<br>
+  👉 Add nudges for inactive users<br>
+  👉 Push challenges early<br>
+  👉 Track 0-match users<br>
+  </div>
+  `;
+
+  // 🔥 NEXT QUESTIONS
+  output += `
+  <div class="card">
+  <b>❓ What to Analyze Next</b><br>
+  👉 Users who never played<br>
+  👉 3-day activation rate<br>
+  👉 Repeat users behavior<br>
+  </div>
+  `;
 
   document.getElementById("output").innerHTML = output;
 }
