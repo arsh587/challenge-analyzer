@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Lite Pro — by Arsh</title>
+  <title>InsightOS by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -45,13 +45,13 @@
 
 <body>
 
-<h1>🚀 InsightOS Lite Pro</h1>
+<h1>🚀 InsightOS</h1>
 <p>Free Analytics Copilot — by Arsh</p>
 
 <input type="file" id="fileInput">
 
-<h3>🎯 What do you want to analyze?</h3>
-<textarea id="goal" placeholder="e.g. activation, segmentation, performance"></textarea>
+<h3>🧠 Ask anything about your data</h3>
+<textarea id="query" placeholder="e.g. how many users are active?"></textarea>
 
 <button onclick="analyze()">Analyze</button>
 
@@ -72,90 +72,84 @@ document.getElementById("fileInput").addEventListener("change", function(e){
 
 function analyze(){
 
-  let total = data.length;
-
-  if(total === 0){
+  if(data.length === 0){
     alert("Upload data first");
     return;
   }
 
-  let keys = Object.keys(data[0]);
+  let q = document.getElementById("query").value.toLowerCase();
 
-  let numericCols = [];
-  let categoricalCols = [];
+  let total = data.length;
 
-  keys.forEach(k=>{
-    let val = data[0][k];
-    if(!isNaN(val)) numericCols.push(k);
-    else categoricalCols.push(k);
-  });
+  let active = data.filter(d => Number(d.Indidividual_matches_same_month) > 0).length;
+  let inactive = total - active;
 
+  let verified = data.filter(d => (d.Verification_status||"").toLowerCase()=="verified").length;
+
+  let activeRate = (active/total*100).toFixed(1);
+
+  let output = "";
   let insights = "";
-  let metrics = "";
-  let questions = "";
+  let chartData = [];
 
-  // Example: find numeric column automatically
-  numericCols.forEach(col=>{
-    let values = data.map(d => Number(d[col]) || 0);
-    let avg = (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2);
-
-    metrics += `${col} avg: ${avg}<br>`;
-  });
-
-  // Example: categorical analysis
-  categoricalCols.forEach(col=>{
-    let counts = {};
-    data.forEach(d=>{
-      let val = d[col];
-      counts[val] = (counts[val]||0)+1;
-    });
-
-    let top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-
-    insights += `Top ${col}: ${top[0]} (${top[1]})<br>`;
-  });
-
-  // Smart insights
-  if(numericCols.includes("Indidividual_matches_same_month")){
-    let active = data.filter(d=>Number(d.Indidividual_matches_same_month)>0).length;
-    let rate = (active/total*100).toFixed(1);
-
-    insights += `Activation rate: ${rate}%<br>`;
-
-    if(rate < 20){
-      insights += "🚨 Low activation detected<br>";
-    }
+  // 🔥 QUERY ENGINE
+  if(q.includes("active")){
+    output += `Active Users: ${active} (${activeRate}%)<br>`;
+    chartData = [active, inactive];
   }
 
-  questions += `
-  👉 Which segment performs best?<br>
-  👉 Are verified users more active?<br>
-  👉 Which month has better engagement?<br>
+  if(q.includes("inactive")){
+    output += `Inactive Users: ${inactive}<br>`;
+  }
+
+  if(q.includes("verified")){
+    output += `Verified Users: ${verified}<br>`;
+  }
+
+  if(q.includes("activation")){
+    output += `Activation Rate: ${activeRate}%<br>`;
+  }
+
+  // fallback
+  if(output === ""){
+    output = `
+    Total Users: ${total}<br>
+    Active Users: ${active}<br>
+    Activation Rate: ${activeRate}%
+    `;
+    chartData = [active, inactive];
+  }
+
+  // 🧠 INSIGHTS
+  if(activeRate < 20){
+    insights += "🚨 Low activation — onboarding issue<br>";
+  }
+
+  if(verified/total < 0.5){
+    insights += "⚠️ Many users unverified<br>";
+  }
+
+  insights += `
+  👉 Focus on first match experience<br>
+  👉 Segment users by activity<br>
   `;
 
   document.getElementById("output").innerHTML = `
-  <div class="card"><b>📊 Metrics</b><br>${metrics}</div>
+  <div class="card"><b>📊 Answer</b><br>${output}</div>
   <div class="card"><b>🧠 Insights</b><br>${insights}</div>
-  <div class="card"><b>❓ Next Questions</b><br>${questions}</div>
+  <div class="card"><b>❓ Next</b><br>
+  👉 Which users are most active?<br>
+  👉 Which cities perform best?<br>
+  👉 Do verified users play more?<br>
+  </div>
   `;
 
-  // Chart example
-  let sampleCol = categoricalCols[0];
-
-  let counts = {};
-  data.forEach(d=>{
-    let val = d[sampleCol];
-    counts[val] = (counts[val]||0)+1;
-  });
-
+  // Chart
   new Chart(document.getElementById("chart"), {
-    type: "bar",
+    type: "pie",
     data: {
-      labels: Object.keys(counts),
-      datasets: [{
-        label: sampleCol,
-        data: Object.values(counts)
-      }]
+      labels: ["Active","Inactive"],
+      datasets: [{ data: chartData }]
     }
   });
 }
