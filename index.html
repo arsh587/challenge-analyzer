@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS — Dynamic Analyzer (by Arsh)</title>
+  <title>InsightOS Strict — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,7 +14,7 @@
       color:white;
     }
 
-    h1 { color:#22c55e; }
+    h1 { color:#38bdf8; }
 
     input, button {
       width:100%;
@@ -25,7 +25,7 @@
     }
 
     button {
-      background:#22c55e;
+      background:#38bdf8;
       font-weight:bold;
       cursor:pointer;
     }
@@ -36,18 +36,25 @@
       margin-top:15px;
       border-radius:10px;
     }
+
+    canvas {
+      background:white;
+      border-radius:10px;
+      margin-top:20px;
+    }
   </style>
 </head>
 
 <body>
 
-<h1>🚀 InsightOS</h1>
-<p>Dynamic Data Analyzer — by Arsh</p>
+<h1>🚀 InsightOS Strict</h1>
+<p>Accurate Schema-Based Analyzer — by Arsh</p>
 
 <input type="file" id="fileInput">
 <button onclick="analyze()">Analyze Data</button>
 
 <div id="output"></div>
+
 <canvas id="chart"></canvas>
 
 <script>
@@ -63,6 +70,12 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
+function isNumericColumn(col){
+  let valid = data.filter(d => d[col] !== "" && d[col] !== undefined);
+  let numericCount = valid.filter(d => !isNaN(d[col])).length;
+  return numericCount / valid.length > 0.8;
+}
+
 function analyze(){
 
   if(data.length === 0){
@@ -76,8 +89,7 @@ function analyze(){
   let categorical = [];
 
   cols.forEach(col=>{
-    let val = data[0][col];
-    if(!isNaN(val) && val !== "") numeric.push(col);
+    if(isNumericColumn(col)) numeric.push(col);
     else categorical.push(col);
   });
 
@@ -88,17 +100,15 @@ function analyze(){
 
   let insights = "";
 
-  // 🔢 Numeric analysis
+  // 🔢 Numeric Analysis (STRICT)
   numeric.forEach(col=>{
-    let vals = data.map(d=>Number(d[col])||0);
+    let vals = data.map(d => Number(d[col])).filter(v => !isNaN(v));
 
-    let sum = vals.reduce((a,b)=>a+b,0);
-    let avg = (sum/vals.length).toFixed(2);
+    let avg = (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2);
     let max = Math.max(...vals);
     let min = Math.min(...vals);
 
-    let zeroCount = vals.filter(v=>v===0).length;
-    let zeroRate = (zeroCount/vals.length*100).toFixed(1);
+    let zeroRate = (vals.filter(v=>v===0).length / vals.length *100).toFixed(1);
 
     output += `<div class="card"><b>${col}</b><br>
     Avg: ${avg}<br>
@@ -108,66 +118,85 @@ function analyze(){
     </div>`;
 
     if(zeroRate > 60){
-      insights += `⚠️ ${col} has many zero values → low activity pattern<br>`;
+      insights += `⚠️ ${col}: high zero values<br>`;
     }
 
-    if(max > avg*5){
-      insights += `⚠️ ${col} highly skewed → few high performers dominate<br>`;
+    if(max > avg * 5){
+      insights += `⚠️ ${col}: highly skewed distribution<br>`;
     }
   });
 
-  // 🧩 Categorical
+  // 🧩 Categorical Analysis (STRICT)
   categorical.forEach(col=>{
     let counts = {};
 
     data.forEach(d=>{
-      let v = d[col] || "Unknown";
-      counts[v] = (counts[v]||0)+1;
+      let val = d[col] || "Unknown";
+      counts[val] = (counts[val]||0)+1;
     });
 
     let sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 
-    output += `<div class="card"><b>${col} distribution</b><br>`;
+    output += `<div class="card"><b>${col}</b><br>`;
     sorted.slice(0,3).forEach(([k,v])=>{
       output += `${k}: ${v}<br>`;
     });
     output += `</div>`;
 
-    let topRate = sorted[0][1]/data.length;
+    let topRate = sorted[0][1] / data.length;
 
     if(topRate > 0.7){
-      insights += `⚠️ ${col} dominated by single value (${sorted[0][0]})<br>`;
+      insights += `⚠️ ${col}: dominated by ${sorted[0][0]}<br>`;
     }
   });
 
-  // 📊 Chart (auto best categorical)
-  let bestCat = categorical[0];
+  // 🔗 Relationship (only if both exist)
+  if(numeric.length > 0 && categorical.length > 0){
 
-  if(bestCat){
+    let cat = categorical[0];
+    let num = numeric[0];
 
-    let counts = {};
+    let group = {};
 
     data.forEach(d=>{
-      let v = d[bestCat];
-      counts[v] = (counts[v]||0)+1;
+      let key = d[cat];
+      let val = Number(d[num]);
+
+      if(!isNaN(val)){
+        if(!group[key]) group[key] = [];
+        group[key].push(val);
+      }
     });
 
+    let result = Object.entries(group).map(([k,v])=>{
+      let avg = v.reduce((a,b)=>a+b,0)/v.length;
+      return [k, avg];
+    });
+
+    result.sort((a,b)=>b[1]-a[1]);
+
+    output += `<div class="card"><b>🔗 ${cat} vs ${num}</b><br>`;
+    result.slice(0,3).forEach(([k,v])=>{
+      output += `${k}: ${v.toFixed(2)}<br>`;
+    });
+    output += `</div>`;
+
+    // Chart
     if(chart) chart.destroy();
 
     chart = new Chart(document.getElementById("chart"), {
       type:"bar",
       data:{
-        labels:Object.keys(counts),
-        datasets:[{ data:Object.values(counts) }]
+        labels: result.slice(0,5).map(x=>x[0]),
+        datasets:[{ data: result.slice(0,5).map(x=>x[1]) }]
       }
     });
   }
 
-  // 🧠 General insights
   insights += `
-  👉 Compare top categories<br>
-  👉 Segment high vs low values<br>
-  👉 Check relationships between columns<br>
+  👉 Analyze distribution differences<br>
+  👉 Compare segments<br>
+  👉 Look for extreme values<br>
   `;
 
   document.getElementById("output").innerHTML = output + `
