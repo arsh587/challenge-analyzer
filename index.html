@@ -1,36 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Pro — by Arsh</title>
+  <title>InsightOS Lite — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: 'Segoe UI';
       padding:20px;
-      background:#0b1220;
+      background: linear-gradient(135deg,#020617,#0f172a);
       color:white;
     }
 
     h1 { color:#38bdf8; }
 
-    textarea, input {
+    input, button {
       width:100%;
       padding:12px;
       margin-top:10px;
       border-radius:10px;
       border:none;
-      background:#1e293b;
-      color:white;
     }
 
     button {
-      padding:12px;
-      margin-top:10px;
       background:#38bdf8;
-      border:none;
-      border-radius:10px;
       font-weight:bold;
       cursor:pointer;
     }
@@ -46,21 +41,19 @@
 
 <body>
 
-<h1>🚀 InsightOS Pro</h1>
-<p>Advanced Data Analytics Engine — by Arsh</p>
+<h1>🚀 InsightOS Lite</h1>
+<p>Auto Data Analysis Tool — by Arsh</p>
 
 <input type="file" id="fileInput">
-
-<h3>Ask anything about your data</h3>
-<textarea id="query" placeholder="e.g. how many users joined and played from madhya pradesh with %"></textarea>
-
-<button onclick="analyze()">Analyze</button>
+<button onclick="analyze()">Analyze Data</button>
 
 <div id="output"></div>
+<canvas id="chart"></canvas>
 
 <script>
 
 let data = [];
+let chart;
 
 document.getElementById("fileInput").addEventListener("change", function(e){
   Papa.parse(e.target.files[0], {
@@ -70,74 +63,97 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-// 🔥 smart column detection
-function findColumn(keywords){
-  let keys = Object.keys(data[0]);
-  return keys.find(k => keywords.some(word => k.toLowerCase().includes(word)));
-}
-
 function analyze(){
 
   if(data.length === 0){
-    alert("Upload data first");
+    alert("Upload file first");
     return;
   }
 
-  let q = document.getElementById("query").value.toLowerCase();
+  let totalRows = data.length;
+  let columns = Object.keys(data[0]);
 
-  let stateCol = findColumn(["state","city","location"]);
-  let matchCol = findColumn(["match","played","game"]);
-  let joinCol = findColumn(["join","challenge"]);
-  
-  let total = data.length;
-  let result = data;
+  let numericCols = [];
+  let categoricalCols = [];
 
-  // 🔥 location
-  let stateMatch = q.match(/from ([a-z ]+)/);
-  if(stateMatch && stateCol){
-    let state = stateMatch[1].trim();
-    result = result.filter(d =>
-      (d[stateCol]||"").toLowerCase().includes(state)
-    );
-  }
+  columns.forEach(col=>{
+    let val = data[0][col];
+    if(!isNaN(val)) numericCols.push(col);
+    else categoricalCols.push(col);
+  });
 
-  // 🔥 played
-  if(q.includes("played") || q.includes("active")){
-    result = result.filter(d => Number(d[matchCol]) > 0);
-  }
-
-  // 🔥 joined
-  if(q.includes("join")){
-    result = result.filter(d =>
-      (d[joinCol]||"").toLowerCase().includes("yes")
-    );
-  }
-
-  let count = result.length;
-
-  let percentage = ((count/total)*100).toFixed(1);
-
-  let output = `<b>Answer:</b><br>${count} users`;
-
-  if(q.includes("percent") || q.includes("%")){
-    output += `<br>${percentage}% of total users`;
-  }
+  let output = `<div class="card"><b>📊 Overview</b><br>
+  Rows: ${totalRows}<br>
+  Columns: ${columns.length}
+  </div>`;
 
   let insights = "";
 
-  if(percentage < 20){
-    insights += "🚨 Low segment size detected<br>";
+  // Numeric analysis
+  numericCols.forEach(col=>{
+    let values = data.map(d=>Number(d[col])||0);
+    let avg = (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2);
+    let max = Math.max(...values);
+    let min = Math.min(...values);
+
+    output += `<div class="card"><b>${col}</b><br>
+    Avg: ${avg}<br>Min: ${min}<br>Max: ${max}</div>`;
+
+    if(avg < 1){
+      insights += `⚠️ Low values in ${col}<br>`;
+    }
+  });
+
+  // Categorical analysis
+  categoricalCols.forEach(col=>{
+    let counts = {};
+    data.forEach(d=>{
+      let val = d[col] || "Unknown";
+      counts[val] = (counts[val]||0)+1;
+    });
+
+    let sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+    output += `<div class="card"><b>Top ${col}</b><br>`;
+    sorted.slice(0,3).forEach(([k,v])=>{
+      output += `${k}: ${v}<br>`;
+    });
+    output += `</div>`;
+
+    if(sorted[0][1] > totalRows * 0.7){
+      insights += `⚠️ ${col} dominated by ${sorted[0][0]}<br>`;
+    }
+  });
+
+  // Chart (first categorical)
+  let sampleCol = categoricalCols[0];
+  if(sampleCol){
+
+    let counts = {};
+    data.forEach(d=>{
+      let v = d[sampleCol];
+      counts[v] = (counts[v]||0)+1;
+    });
+
+    if(chart) chart.destroy();
+
+    chart = new Chart(document.getElementById("chart"), {
+      type:"bar",
+      data:{
+        labels:Object.keys(counts),
+        datasets:[{ data:Object.values(counts) }]
+      }
+    });
   }
 
-  insights += `
-  👉 Compare with other states<br>
-  👉 Check conversion rate<br>
-  👉 Analyze behavior over time<br>
-  `;
+  document.getElementById("output").innerHTML = output + `
+  <div class="card"><b>🧠 Insights</b><br>${insights}</div>
 
-  document.getElementById("output").innerHTML = `
-  <div class="card">${output}</div>
-  <div class="card"><b>Insights</b><br>${insights}</div>
+  <div class="card"><b>🚀 Suggested Analysis</b><br>
+  👉 Segment users by activity<br>
+  👉 Compare top categories<br>
+  👉 Check distribution trends<br>
+  </div>
   `;
 }
 
