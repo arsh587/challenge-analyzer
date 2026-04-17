@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>InsightOS Smart — by Arsh</title>
+  <title>InsightOS — Dynamic Analyzer (by Arsh)</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
@@ -40,17 +41,19 @@
 
 <body>
 
-<h1>🚀 InsightOS Smart</h1>
-<p>Context-Aware Analytics Engine — by Arsh</p>
+<h1>🚀 InsightOS</h1>
+<p>Dynamic Data Analyzer — by Arsh</p>
 
 <input type="file" id="fileInput">
-<button onclick="analyze()">Analyze Automatically</button>
+<button onclick="analyze()">Analyze Data</button>
 
 <div id="output"></div>
+<canvas id="chart"></canvas>
 
 <script>
 
 let data = [];
+let chart;
 
 document.getElementById("fileInput").addEventListener("change", function(e){
   Papa.parse(e.target.files[0], {
@@ -60,11 +63,6 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-function findCol(keywords){
-  let keys = Object.keys(data[0]);
-  return keys.find(k => keywords.some(w => k.toLowerCase().includes(w)));
-}
-
 function analyze(){
 
   if(data.length === 0){
@@ -72,90 +70,109 @@ function analyze(){
     return;
   }
 
-  let total = data.length;
+  let cols = Object.keys(data[0]);
 
-  let playerCol = findCol(["player","user"]);
-  let matchCol = findCol(["match"]);
-  let avgCol = findCol(["avg"]);
-  let monthCol = findCol(["month"]);
+  let numeric = [];
+  let categorical = [];
 
-  let output = "";
+  cols.forEach(col=>{
+    let val = data[0][col];
+    if(!isNaN(val) && val !== "") numeric.push(col);
+    else categorical.push(col);
+  });
 
-  // 🔥 ACTIVATION LOGIC
-  if(matchCol && playerCol){
+  let output = `<div class="card"><b>📊 Dataset</b><br>
+  Rows: ${data.length}<br>
+  Columns: ${cols.length}
+  </div>`;
 
-    let totalPlayers = data.reduce((sum,d)=> sum + Number(d[playerCol]||0),0);
-    let activePlayers = data.reduce((sum,d)=> sum + Number(d[matchCol]||0),0);
+  let insights = "";
 
-    let activation = ((activePlayers/totalPlayers)*100).toFixed(1);
+  // 🔢 Numeric analysis
+  numeric.forEach(col=>{
+    let vals = data.map(d=>Number(d[col])||0);
 
-    output += `
-    <div class="card">
-    <b>📊 Activation Analysis</b><br>
-    Total Users: ${totalPlayers}<br>
-    Active Users: ${activePlayers}<br>
-    Activation Rate: ${activation}%
-    </div>
-    `;
+    let sum = vals.reduce((a,b)=>a+b,0);
+    let avg = (sum/vals.length).toFixed(2);
+    let max = Math.max(...vals);
+    let min = Math.min(...vals);
 
-    if(activation < 30){
-      output += `
-      <div class="card">
-      🚨 <b>Critical Insight</b><br>
-      Most users are not engaging after signup → major activation issue
-      </div>
-      `;
+    let zeroCount = vals.filter(v=>v===0).length;
+    let zeroRate = (zeroCount/vals.length*100).toFixed(1);
+
+    output += `<div class="card"><b>${col}</b><br>
+    Avg: ${avg}<br>
+    Min: ${min}<br>
+    Max: ${max}<br>
+    Zero %: ${zeroRate}%
+    </div>`;
+
+    if(zeroRate > 60){
+      insights += `⚠️ ${col} has many zero values → low activity pattern<br>`;
     }
-  }
 
-  // 🔥 AVG MATCH
-  if(avgCol){
-    let avg = data.reduce((s,d)=>s+Number(d[avgCol]||0),0)/data.length;
-
-    if(avg < 1){
-      output += `
-      <div class="card">
-      ⚠️ <b>Low Engagement Depth</b><br>
-      Users are playing very few matches after joining
-      </div>
-      `;
+    if(max > avg*5){
+      insights += `⚠️ ${col} highly skewed → few high performers dominate<br>`;
     }
-  }
+  });
 
-  // 🔥 TREND
-  if(monthCol && matchCol){
-
-    output += `<div class="card"><b>📈 Trend Analysis</b><br>`;
+  // 🧩 Categorical
+  categorical.forEach(col=>{
+    let counts = {};
 
     data.forEach(d=>{
-      output += `${d[monthCol]} → ${d[matchCol]} matches<br>`;
+      let v = d[col] || "Unknown";
+      counts[v] = (counts[v]||0)+1;
     });
 
+    let sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+    output += `<div class="card"><b>${col} distribution</b><br>`;
+    sorted.slice(0,3).forEach(([k,v])=>{
+      output += `${k}: ${v}<br>`;
+    });
     output += `</div>`;
+
+    let topRate = sorted[0][1]/data.length;
+
+    if(topRate > 0.7){
+      insights += `⚠️ ${col} dominated by single value (${sorted[0][0]})<br>`;
+    }
+  });
+
+  // 📊 Chart (auto best categorical)
+  let bestCat = categorical[0];
+
+  if(bestCat){
+
+    let counts = {};
+
+    data.forEach(d=>{
+      let v = d[bestCat];
+      counts[v] = (counts[v]||0)+1;
+    });
+
+    if(chart) chart.destroy();
+
+    chart = new Chart(document.getElementById("chart"), {
+      type:"bar",
+      data:{
+        labels:Object.keys(counts),
+        datasets:[{ data:Object.values(counts) }]
+      }
+    });
   }
 
-  // 🔥 RECOMMENDATIONS
-  output += `
-  <div class="card">
-  <b>🚀 Recommendations</b><br>
-  👉 Improve first match onboarding<br>
-  👉 Add nudges for inactive users<br>
-  👉 Push challenges early<br>
-  👉 Track 0-match users<br>
-  </div>
+  // 🧠 General insights
+  insights += `
+  👉 Compare top categories<br>
+  👉 Segment high vs low values<br>
+  👉 Check relationships between columns<br>
   `;
 
-  // 🔥 NEXT QUESTIONS
-  output += `
-  <div class="card">
-  <b>❓ What to Analyze Next</b><br>
-  👉 Users who never played<br>
-  👉 3-day activation rate<br>
-  👉 Repeat users behavior<br>
-  </div>
+  document.getElementById("output").innerHTML = output + `
+  <div class="card"><b>🧠 Insights</b><br>${insights}</div>
   `;
-
-  document.getElementById("output").innerHTML = output;
 }
 
 </script>
