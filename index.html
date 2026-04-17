@@ -4,17 +4,16 @@
   <title>InsightOS Pro — by Arsh</title>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: 'Segoe UI';
       padding:20px;
-      background:#0f172a;
+      background:#0b1220;
       color:white;
     }
 
-    h1 { color:#22c55e; }
+    h1 { color:#38bdf8; }
 
     textarea, input {
       width:100%;
@@ -29,7 +28,7 @@
     button {
       padding:12px;
       margin-top:10px;
-      background:#22c55e;
+      background:#38bdf8;
       border:none;
       border-radius:10px;
       font-weight:bold;
@@ -48,12 +47,12 @@
 <body>
 
 <h1>🚀 InsightOS Pro</h1>
-<p>Accurate Data Analytics Engine — by Arsh</p>
+<p>Advanced Data Analytics Engine — by Arsh</p>
 
 <input type="file" id="fileInput">
 
-<h3>Ask your question</h3>
-<textarea id="query" placeholder="e.g. how many users joined challenges and played matches from madhya pradesh"></textarea>
+<h3>Ask anything about your data</h3>
+<textarea id="query" placeholder="e.g. how many users joined and played from madhya pradesh with %"></textarea>
 
 <button onclick="analyze()">Analyze</button>
 
@@ -71,29 +70,30 @@ document.getElementById("fileInput").addEventListener("change", function(e){
   });
 });
 
-// 🔥 detect columns
-function detectColumn(keyword){
+// 🔥 smart column detection
+function findColumn(keywords){
   let keys = Object.keys(data[0]);
-  return keys.find(k => k.toLowerCase().includes(keyword));
+  return keys.find(k => keywords.some(word => k.toLowerCase().includes(word)));
 }
 
 function analyze(){
-
-  let q = document.getElementById("query").value.toLowerCase();
 
   if(data.length === 0){
     alert("Upload data first");
     return;
   }
 
-  let stateCol = detectColumn("state");
-  let matchCol = detectColumn("match");
-  let joinCol = detectColumn("join");
+  let q = document.getElementById("query").value.toLowerCase();
 
+  let stateCol = findColumn(["state","city","location"]);
+  let matchCol = findColumn(["match","played","game"]);
+  let joinCol = findColumn(["join","challenge"]);
+  
+  let total = data.length;
   let result = data;
 
-  // 🔥 location filter
-  let stateMatch = q.match(/from (.+)/);
+  // 🔥 location
+  let stateMatch = q.match(/from ([a-z ]+)/);
   if(stateMatch && stateCol){
     let state = stateMatch[1].trim();
     result = result.filter(d =>
@@ -101,31 +101,43 @@ function analyze(){
     );
   }
 
-  // 🔥 played match filter
-  if(q.includes("played")){
+  // 🔥 played
+  if(q.includes("played") || q.includes("active")){
     result = result.filter(d => Number(d[matchCol]) > 0);
   }
 
-  // 🔥 joined filter
+  // 🔥 joined
   if(q.includes("join")){
     result = result.filter(d =>
-      (d[joinCol]||"").toLowerCase() === "yes"
+      (d[joinCol]||"").toLowerCase().includes("yes")
     );
   }
 
   let count = result.length;
 
-  document.getElementById("output").innerHTML = `
-  <div class="card">
-  <b>Answer:</b><br>
-  ${count} users match your criteria
-  </div>
+  let percentage = ((count/total)*100).toFixed(1);
 
-  <div class="card">
-  <b>Insights:</b><br>
-  👉 Filter applied: ${q}<br>
-  👉 Result set size: ${count}<br>
-  </div>
+  let output = `<b>Answer:</b><br>${count} users`;
+
+  if(q.includes("percent") || q.includes("%")){
+    output += `<br>${percentage}% of total users`;
+  }
+
+  let insights = "";
+
+  if(percentage < 20){
+    insights += "🚨 Low segment size detected<br>";
+  }
+
+  insights += `
+  👉 Compare with other states<br>
+  👉 Check conversion rate<br>
+  👉 Analyze behavior over time<br>
+  `;
+
+  document.getElementById("output").innerHTML = `
+  <div class="card">${output}</div>
+  <div class="card"><b>Insights</b><br>${insights}</div>
   `;
 }
 
